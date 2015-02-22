@@ -47,6 +47,12 @@
 void (*SetState)(void *new_state);
 
 
+
+bool mss_model(void) {
+}
+
+
+
 /**
 * This function is used to create a state log to be added to the LP's log chain
 *
