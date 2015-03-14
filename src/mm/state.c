@@ -48,7 +48,19 @@ void (*SetState)(void *new_state);
 
 
 
-bool mss_model(void) {
+
+//  TODO: questo è lo stub
+static int events_in_coasting_forward(void) {
+
+	double Fr = 0; // dalle statistiche
+	double de = 0; // dalle statistiche
+	double db = 0; // dalle statistiche
+	double dl = 0; // dalle statistiche
+	double dr = 0; // dalle statistiche
+	double chi = rootsim_config.ckpt_period;
+
+
+	return (int)(rootsim_config.ckpt_period / 2);
 }
 
 
@@ -116,6 +128,9 @@ void LogState(unsigned int lid) {
 		(void)list_insert_tail(LPS[lid]->queue_states, &new_state);
 
 	}
+
+	// Update the number of events to process in coasting forward in case of a rollback
+	LPS[lid]->events_in_coasting_forward = events_in_coasting_forward();
 }
 
 
@@ -151,6 +166,9 @@ unsigned int silent_execution(unsigned int lid, void *state_buffer, msg_t *evt, 
 	if(evt == final_evt)
 		goto out;
 
+	// We do not need any kind of instrumentation here...
+	__ProcessEvent[lid] = ProcessEvent;
+
 	// Reprocess events. Outgoing messages are explicitly discarded, as this part of
 	// the simulation has been already executed at least once
 	while(evt != NULL && evt != final_evt) {
@@ -165,6 +183,8 @@ unsigned int silent_execution(unsigned int lid, void *state_buffer, msg_t *evt, 
 		activate_LP(lid, evt->timestamp, evt, state_buffer);
 		evt = list_next(evt);
 	}
+
+	__ProcessEvent[lid] = ProcessEvent_reverse;
 
     out:
 	LPS[lid]->state = old_state;
@@ -218,6 +238,7 @@ void rollback(unsigned int lid) {
 	// Restore the simulation state and correct the state base pointer
 	RestoreState(lid, restore_state);
 
+	
 	// Coasting forward, updating the bound. The very first log (before INIT)
 	// has no last_event set
 	if(restore_state->last_event == NULL) {

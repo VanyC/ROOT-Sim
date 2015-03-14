@@ -146,7 +146,7 @@ void base_init(void) {
 
 		if (rootsim_config.snapshot == FULL_SNAPSHOT) {
 			__OnGVT[i] = OnGVT;
-			__ProcessEvent[i] = ProcessEvent;
+			__ProcessEvent[i] = ProcessEvent_reverse;
 		}
 
 		if (GidToKernel(i) == kid) { // If the i-th logical process is hosted by this kernel

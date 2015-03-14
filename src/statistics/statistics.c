@@ -810,27 +810,45 @@ double statistics_get_data(unsigned int type, double data) {
 			break;
 			
 		case STAT_GET_EVENT_TIME_LP:
-			ret = lp_stats[(int)data].event_time / lp_stats[(int)data].tot_events;
+			if(lp_stats[(int)data].tot_events > 0)
+				ret = lp_stats[(int)data].event_time / lp_stats[(int)data].tot_events;
+			else
+				ret = 0;
 			break;
 
 		case STAT_GET_FULL_CKPT_TIME:
-			ret = lp_stats[(int)data].ckpt_time / lp_stats[(int)data].tot_ckpts;
+			if(lp_stats[(int)data].tot_ckpts > 0)
+				ret = lp_stats[(int)data].ckpt_time / lp_stats[(int)data].tot_ckpts;
+			else
+				ret = 0;
 			break;
 			
 		case STAT_GET_REVGEN_COST:
-			ret = lp_stats[(int)data].revgen_time / lp_stats[(int)data].revgen_tot;
+			if(lp_stats[(int)data].revgen_tot > 0)
+				ret = lp_stats[(int)data].revgen_time / lp_stats[(int)data].revgen_tot;
+			else
+				ret = 0;
 			break;
 
 		case STAT_GET_FULL_RECOVERY_TIME:
-			ret = lp_stats[(int)data].recovery_time / lp_stats[(int)data].tot_recoveries;
+			if(lp_stats[(int)data].tot_recoveries > 0)
+				ret = lp_stats[(int)data].recovery_time / lp_stats[(int)data].tot_recoveries;
+			else
+				ret = 0;
 			break;
 
 		case STAT_GET_UNDO_EVENT_COST:
-			ret = lp_stats[(int)data].undo_event_time / lp_stats[(int)data].undo_events_tot;
+			if(lp_stats[(int)data].undo_events_tot > 0)
+				ret = lp_stats[(int)data].undo_event_time / lp_stats[(int)data].undo_events_tot;
+			else
+				ret = 0;
 			break;
 
 		case STAT_GET_ROLLBACK_FREQ:
-			ret = lp_stats[(int)data].tot_rollbacks / lp_stats[(int)data].tot_events;
+			if(lp_stats[(int)data].tot_events > 0)
+				ret = lp_stats[(int)data].tot_rollbacks / lp_stats[(int)data].tot_events;
+			else
+				ret = 0;
 			break;
 
 		default:

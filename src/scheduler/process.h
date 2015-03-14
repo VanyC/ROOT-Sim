@@ -94,6 +94,9 @@ typedef struct _LP_state {
 	/// Counts how many events executed from the last checkpoint (to support PSS)
 	unsigned int	from_last_ckpt;
 
+	/// Events to process in coasting forward
+	int		events_in_coasting_forward;
+
 	/// If this variable is set, the next invocation to LogState() takes a new state log, independently of the checkpointing interval
 	bool		state_log_forced;
 	
