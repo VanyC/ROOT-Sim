@@ -363,6 +363,10 @@ void statistics_stop(int exit_code) {
 			thread_stats[tid].recovery_time += lp_stats[lid].recovery_time;
 			thread_stats[tid].event_time += lp_stats[lid].event_time;
 			thread_stats[tid].idle_cycles += lp_stats[lid].idle_cycles;
+			thread_stats[tid].revgen_time += lp_stats[lid].revgen_time;
+			thread_stats[tid].revgen_tot += lp_stats[lid].revgen_tot;
+			thread_stats[tid].undo_event_time += lp_stats[lid].undo_event_time;
+			thread_stats[tid].undo_events_tot += lp_stats[lid].undo_events_tot;
 		}
 
 		// Compute derived statistics and dump everything
@@ -432,6 +436,10 @@ void statistics_stop(int exit_code) {
 				system_wide_stats.event_time += thread_stats[i].event_time;
 				system_wide_stats.idle_cycles += thread_stats[i].idle_cycles;
 				system_wide_stats.memory_usage += thread_stats[i].memory_usage;
+				system_wide_stats.revgen_time += thread_stats[i].revgen_time;
+				system_wide_stats.revgen_tot += thread_stats[i].revgen_tot;
+				system_wide_stats.undo_event_time += thread_stats[i].undo_event_time;
+				system_wide_stats.undo_events_tot += thread_stats[i].undo_events_tot;
 			}
 			// GVT computations are the same for all threads
 			system_wide_stats.gvt_computations += thread_stats[0].gvt_computations;
@@ -629,7 +637,7 @@ void statistics_fini(void) {
 }
 
 
-inline void statistics_post_lp_data(unsigned int lid, unsigned int type, double data) {
+void statistics_post_lp_data(unsigned int lid, unsigned int type, double data) {
 
 	if(rootsim_config.serial) {
 		
@@ -698,6 +706,22 @@ inline void statistics_post_lp_data(unsigned int lid, unsigned int type, double 
 				lp_stats_gvt[lid].reprocessed_events += data;
 				break;
 
+			case STAT_REVGEN_TIME:
+				lp_stats_gvt[lid].revgen_time += data;
+				break;
+
+			case STAT_REVGEN:
+				lp_stats_gvt[lid].revgen_tot += 1.0;
+				break;
+
+			case STAT_UNDO_EVENT_TIME:
+				lp_stats_gvt[lid].undo_event_time += data;
+				break;
+
+			case STAT_UNDO_EVENT:
+				lp_stats_gvt[lid].undo_events_tot += 1.0;
+				break;
+
 			default:
 				rootsim_error(true, "Wrong LP statistics post type: %d. Aborting...\n", type);
 		}
@@ -705,7 +729,7 @@ inline void statistics_post_lp_data(unsigned int lid, unsigned int type, double 
 }
 
 
-inline void statistics_post_other_data(unsigned int type, double data) {
+void statistics_post_other_data(unsigned int type, double data) {
 	register unsigned int i;
 	
 	if(rootsim_config.serial) {
@@ -743,6 +767,9 @@ inline void statistics_post_other_data(unsigned int type, double data) {
 
 			statistics_flush_gvt(data);
 
+			// Used memory is a per-thread statistics
+			thread_stats[tid].memory_usage += (double)getCurrentRSS();
+
 			for(i = 0; i < n_prc_per_thread; i++) {
 				unsigned int lid = LPS_bound[i]->lid;
 
@@ -757,7 +784,10 @@ inline void statistics_post_other_data(unsigned int type, double data) {
 				lp_stats[lid].tot_recoveries += lp_stats_gvt[lid].tot_recoveries;
 				lp_stats[lid].recovery_time += lp_stats_gvt[lid].recovery_time;
 				lp_stats[lid].reprocessed_events += lp_stats_gvt[lid].reprocessed_events;
-				thread_stats[tid].memory_usage += (double)getCurrentRSS();
+				lp_stats[lid].revgen_time += lp_stats_gvt[lid].revgen_time;
+				lp_stats[lid].revgen_tot += lp_stats_gvt[lid].revgen_tot;
+				lp_stats[lid].undo_event_time += lp_stats_gvt[lid].undo_event_time;
+				lp_stats[lid].undo_events_tot += lp_stats_gvt[lid].undo_events_tot;
 				thread_stats[tid].gvt_computations += 1.0;
 
 				bzero(&lp_stats_gvt[LPS_bound[i]->lid], sizeof(struct stat_t));
@@ -769,3 +799,43 @@ inline void statistics_post_other_data(unsigned int type, double data) {
 	}
 }
 
+
+double statistics_get_data(unsigned int type, double data) {
+	double ret;
+
+	switch(type) {
+
+		case STAT_GET_SIMTIME_ADVANCEMENT:
+			ret = thread_stats[tid].simtime_advancement;
+			break;
+			
+		case STAT_GET_EVENT_TIME_LP:
+			ret = lp_stats[(int)data].event_time / lp_stats[(int)data].tot_events;
+			break;
+
+		case STAT_GET_FULL_CKPT_TIME:
+			ret = lp_stats[(int)data].ckpt_time / lp_stats[(int)data].tot_ckpts;
+			break;
+			
+		case STAT_GET_REVGEN_COST:
+			ret = lp_stats[(int)data].revgen_time / lp_stats[(int)data].revgen_tot;
+			break;
+
+		case STAT_GET_FULL_RECOVERY_TIME:
+			ret = lp_stats[(int)data].recovery_time / lp_stats[(int)data].tot_recoveries;
+			break;
+
+		case STAT_GET_UNDO_EVENT_COST:
+			ret = lp_stats[(int)data].undo_event_time / lp_stats[(int)data].undo_events_tot;
+			break;
+
+		case STAT_GET_ROLLBACK_FREQ:
+			ret = lp_stats[(int)data].tot_rollbacks / lp_stats[(int)data].tot_events;
+			break;
+
+		default:
+			rootsim_error(true, "Wrong statistics get type: %d. Aborting...\n", type);
+	}
+	
+	return ret;
+}

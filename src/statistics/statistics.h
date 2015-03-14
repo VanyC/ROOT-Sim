@@ -69,12 +69,27 @@
 #define STAT_EVENT_TIME		10
 #define STAT_IDLE_CYCLES	11
 #define STAT_SILENT		12
-
+#define STAT_REVGEN_TIME	13
+#define STAT_REVGEN		14
+#define STAT_UNDO_EVENT_TIME	15
+#define STAT_UNDO_EVENT		16
 
 /* Definition of Global Statistics Post Messages */
 #define STAT_SIM_START		1001
 #define STAT_GVT		1002
 #define STAT_GVT_TIME		1003
+
+
+
+/* Definition of Thread Statistics Get Messages */
+#define STAT_GET_SIMTIME_ADVANCEMENT	15001
+#define STAT_GET_EVENT_TIME_LP		15002
+#define STAT_GET_FULL_CKPT_TIME		15003
+#define STAT_GET_REVGEN_COST		15004
+#define STAT_GET_FULL_RECOVERY_TIME	15006
+#define STAT_GET_UNDO_EVENT_COST	15007
+#define STAT_GET_ROLLBACK_FREQ		15009
+
 
 
 
@@ -96,10 +111,16 @@ struct stat_t {
 		tot_recoveries,
 		recovery_time,
 		event_time,
+		exponential_event_time,
 		idle_cycles,
 		memory_usage,
 		gvt_computations,
-		gvt_time; // Used only in sequential simulation
+		gvt_time,
+		simtime_advancement,
+		revgen_time,
+		revgen_tot,
+		undo_event_time,
+		undo_events_tot;
 };
 
 extern void _mkdir(const char *path);
@@ -108,6 +129,7 @@ extern void statistics_fini(void);
 extern void statistics_stop(int exit_code);
 extern inline void statistics_post_lp_data(unsigned int lid, unsigned int type, double data);
 extern inline void statistics_post_other_data(unsigned int type, double data);
+extern double statistics_get_data(unsigned int type, double data);
 
 
 

@@ -35,6 +35,9 @@
 #include <errno.h>
 
 
+#include <core/timer.h>
+timer reverse_intruction_generation;
+
 #define REVERSE_WIN_SIZE 1024 * 1024 * 10	//! Defalut size of the reverse window which will contain the reverse code
 #define HMAP_SIZE		32768				//! Default size ot the address hash map to handle colliding mov addresses
 
@@ -61,17 +64,17 @@ typedef struct _addrmap {
 // History of all the reverse windows allocated since the first execution
 typedef struct _eras {
 	revwin *era[1024];	//! Array of the windows
-//	int size;			//! Current size of the history
+//	int size;		//! Current size of the history
 	int last_free;		//! Index of the last available slot
 } eras;
 
 
-static int timestamp = 0;		//! This is the counter used to infer which instructions have to be reversed
+static int timestamp = 0;	//! This is the counter used to infer which instructions have to be reversed
 static int current_era = -1;	//! Represents the current era to which the reverse heap refers to
-static int last_era = -1;		//! Specifies the last era index. It is initialized to 1 in order to first create the window
-static addrmap hashmap;			//! Map of the referenced addresses
-static eras history;			//! Collects the reverse windows along the eras
-static revwin *window;			//! Represents the pointer to the current active reverse window
+static int last_era = -1;	//! Specifies the last era index. It is initialized to 1 in order to first create the window
+static addrmap hashmap;		//! Map of the referenced addresses
+static eras history;		//! Collects the reverse windows along the eras
+static revwin *window;		//! Represents the pointer to the current active reverse window
 
 
 
