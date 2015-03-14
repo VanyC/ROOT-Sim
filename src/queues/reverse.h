@@ -50,7 +50,7 @@ static __thread revwin *window;		//! Represents the pointer to the current activ
  * it does not to be a good idea since could be less portable and further
  * could open to security exploits.
  */
-revwin * create_new_revwin(size_t size);
+void *create_new_revwin(size_t size);
 
 /**
  * Free the reverse window passed as argument.
