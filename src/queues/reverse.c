@@ -34,49 +34,20 @@
 #include <sys/mman.h>
 #include <errno.h>
 
+#include <queues/reverse.h>
 
 #include <core/timer.h>
-timer reverse_intruction_generation;
+#include <statistics/statistics.h>
 
-#define REVERSE_WIN_SIZE 1024 * 1024 * 10	//! Defalut size of the reverse window which will contain the reverse code
-#define HMAP_SIZE		32768				//! Default size ot the address hash map to handle colliding mov addresses
+timer reverse_instruction_generation;
+static unsigned int revgen_count;
+double revgen_time;
 
-#define HMAP_INDEX_MASK		0xffffffc0		//! Most significant 10 bits are used to index quad-word which contains address bit
-#define HMAP_OFFSET_MASK	0x3f			//! Least significant 6 bits are used to intercept address presence
-#define HMAP_OFF_MASK_SIZE	6
-
-// TODO: move to header?
-typedef struct _revwin {
-	int size;			//! The actual size of the reverse window
-	int flags;			//! Creation flags
-	int prot;			//! Creation protection flags
-	void *address;		//! Address to which it resides
-	void *pointer;		//! Pointer to the new actual free address memory location
-} revwin;
-
-
-// Hash map to handle repeted MOV-targeted addresses
-typedef struct _addrmap {
-	unsigned long long map[HMAP_SIZE];
-} addrmap;
-
-
-// History of all the reverse windows allocated since the first execution
-typedef struct _eras {
-	revwin *era[1024];	//! Array of the windows
-//	int size;		//! Current size of the history
-	int last_free;		//! Index of the last available slot
-} eras;
-
-
-static int timestamp = 0;	//! This is the counter used to infer which instructions have to be reversed
-static int current_era = -1;	//! Represents the current era to which the reverse heap refers to
-static int last_era = -1;	//! Specifies the last era index. It is initialized to 1 in order to first create the window
-static addrmap hashmap;		//! Map of the referenced addresses
-static eras history;		//! Collects the reverse windows along the eras
-static revwin *window;		//! Represents the pointer to the current active reverse window
-
-
+static int timestamp = 0;		//! This is the counter used to infer which instructions have to be reversed
+static int current_era = -1;		//! Represents the current era to which the reverse heap refers to
+static int last_era = -1;		//! Specifies the last era index. It is initialized to 1 in order to first create the window
+static addrmap hashmap;			//! Map of the referenced addresses
+static eras history;			//! Collects the reverse windows along the eras
 
 
 /**
@@ -96,8 +67,14 @@ static inline revwin *allocate_reverse_window (size_t size) {
 
 //	printf("chiamo allocate_reverse\n");
 	window = malloc(sizeof(revwin));
+	if(window == NULL) {
+		perror("Out of memroy!");
+		abort();
+	}
 
 	window->size = size;
+//	window->prot = PROT_EXEC | PROT_READ;
+//	window->flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	window->address = mmap(NULL, size, PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	window->pointer = window->address + size;
 
@@ -118,7 +95,7 @@ static inline revwin *allocate_reverse_window (size_t size) {
 	// window, otherwise it aborts. Note: the last free slot pointer will be incremented
 
 	// check if space is enough, otherwise it aborts
-	if(history.last_free >= sizeof(history.era)){
+/*	if(history.last_free >= sizeof(history.era)){
 		perror("too much eras");
 		abort();
 	}
@@ -130,7 +107,7 @@ static inline revwin *allocate_reverse_window (size_t size) {
 		perror("unable to get era's descriptor");
 		abort();
 	}
-
+*/
 
 	return window;
 }
@@ -304,6 +281,8 @@ void reverse_code_generator (void *address, unsigned int size) {
 
 	printf("\n=== Reverse code generator ===\n");
 
+	timer_start(reverse_instruction_generation);
+
 	// check if the address is already be referenced, in that case it is not necessary
 	// to compute again the reverse instruction, since the former MOV is the one
 	// would be restored in future, therefore the subsequent ones are redundant (at least
@@ -312,6 +291,7 @@ void reverse_code_generator (void *address, unsigned int size) {
 		return;
 	}
 
+	// Read the value at specified address
 	value = 0;
 	switch(size) {
 		case 1:
@@ -337,12 +317,20 @@ void reverse_code_generator (void *address, unsigned int size) {
 	// restore the previous value 'value' stored in the memory address
 	// based on the operand size selects the proper MOV instruction bytes
 	create_reverse_instruction(value, size);
+	
+	// Collecting statistics
+	revgen_time = timer_value_micro(reverse_instruction_generation);
+	statistics_post_lp_data(current_lp(), STAT_REVGEN_TIME, revgen_time);
+	statistics_post_lp_data(current_ld(), STAT_REVGEN, ++revgen_count);
 
 	//dump_revwin();
 
 	//~ printf("==============================\n\n");
 }
 
+
+// Library functions
+/*
 inline void trampoline_initialize () {
 	if(current_era > 0) return;
 
@@ -372,6 +360,22 @@ inline void free_last_revwin () {
 	munmap(window->address, window->size);
 	history.era[history.last_free] = NULL;
 }
+*/
+revwin * create_new_revwin(size_t size) {
+	
+	window = allocate_reverse_window(size ? size : REVERSE_WIN_SIZE);
+	
+	return window;
+}
+
+void free_revwin (revwin *window) {
+	if(window == NULL)
+		return;
+
+	munmap(window->address, window->size);
+	free(window);
+}
+
 
 #endif /* HAVE_MIXED_SS */
 
