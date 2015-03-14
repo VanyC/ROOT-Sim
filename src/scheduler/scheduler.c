@@ -239,7 +239,7 @@ void initialize_LP(unsigned int lp) {
 	LPS[lp]->rendezvous_queue = new_list(msg_t);
 
 	// We must execute some events to decide how to execute, so just start with traditional execution
-	LPS[lid]->events_in_coasting_forward = rootsim_config.ckpt_period;
+	LPS[lp]->events_in_coasting_forward = rootsim_config.ckpt_period;
 
 	// Assign the local ID to the LP
 	LPS[lp]->lid = lp;
