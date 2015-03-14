@@ -34,6 +34,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 
+#include <queues/reverse.h>
 
 #include <core/timer.h>
 #include <statistics/statistics.h>
@@ -47,7 +48,6 @@ static int current_era = -1;		//! Represents the current era to which the revers
 static int last_era = -1;		//! Specifies the last era index. It is initialized to 1 in order to first create the window
 static addrmap hashmap;			//! Map of the referenced addresses
 static eras history;			//! Collects the reverse windows along the eras
-__thread nevwin *window;		//! Represents the pointer to the current active reverse window
 
 
 /**
