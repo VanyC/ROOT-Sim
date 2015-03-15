@@ -49,13 +49,15 @@ extern __thread revwin *current_revwin;		//! Represents the pointer to the curre
  * it does not to be a good idea since could be less portable and further
  * could open to security exploits.
  */
-void *create_new_revwin(size_t size);
+extern void *create_new_revwin(size_t size);
 
 /**
  * Free the reverse window passed as argument.
  *
  * @param window A pointer to a reverse window
  */
-void free_revwin (void *window);
+extern void free_revwin (void *window);
+
+extern void execute_undo_event(void *w);
 
 #endif //__REVERSE__

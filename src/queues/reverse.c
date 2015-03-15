@@ -381,6 +381,10 @@ void free_revwin (void *w) {
 	free(window);
 }
 
+void execute_undo_event(void *w) {
+	revwin *window = (revwin *)w;
+}
+
 
 #endif /* HAVE_MIXED_SS */
 

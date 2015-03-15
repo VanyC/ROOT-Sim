@@ -211,6 +211,29 @@ unsigned int silent_execution(unsigned int lid, void *state_buffer, msg_t *evt, 
 
 
 
+static void undo_events(unsigned int lid, state_t *s) {
+	msg_t *evt;
+
+
+	evt = s->last_event;
+	while(evt->revwin != NULL) {
+
+		execute_undo_event(evt->revwin);
+		free_revwin(evt->revwin);
+		evt->revwin = NULL;
+
+		evt = list_prev(evt);
+	}
+
+
+	// This log is anyhow inconsistent, so remove it
+	log_delete(s->log);
+	s->last_event = (void *)0xDEADC0DE;
+        list_delete_by_content(LPS[lid]->queue_states, s);
+}
+
+
+
 /**
 * This function rolls back the execution of a certain LP. The point where the
 * execution is rolled back is identified by the event pointed by the rollback_bound
@@ -229,6 +252,7 @@ void rollback(unsigned int lid) {
 	msg_t *last_correct_event;
 	msg_t *reprocess_from;
 	unsigned int reprocessed_events;
+	bool reverse = false;
 
 	// Sanity check
 	if(LPS[lid]->state != LP_STATE_ROLLBACK) {
@@ -243,29 +267,42 @@ void rollback(unsigned int lid) {
 	// Send antimessages
 	send_antimessages(lid, last_correct_event->timestamp);
 
+	// If the bound has a revwin, we can use undo events
+	if(last_correct_event->revwin != NULL)
+		reverse = true;
+
 	// Find the state to be restored, and prune the wrongly computed states
 	restore_state = list_tail(LPS[lid]->queue_states);
 	while (restore_state != NULL && restore_state->lvt > last_correct_event->timestamp) { // It's > rather than >= because we have already taken into account simultaneous events
 		s = restore_state;
+
+		if(reverse && list_prev(s) != NULL && list_prev(s)->lvt < last_correct_event->timestamp)
+			break;
+
 		restore_state = list_prev(restore_state);
 		log_delete(s->log);
 		s->last_event = (void *)0xDEADC0DE;
 		list_delete_by_content(LPS[lid]->queue_states, s);
 	}
 
-	// Restore the simulation state and correct the state base pointer
+
+	// Restore the simulation state
 	RestoreState(lid, restore_state);
 
-	
-	// Coasting forward, updating the bound. The very first log (before INIT)
-	// has no last_event set
-	if(restore_state->last_event == NULL) {
-		reprocess_from = list_head(LPS[lid]->queue_in);
-	} else {
-		reprocess_from = list_next(restore_state->last_event);
+
+	if(reverse) {
+		undo_events(lid, restore_state);
+	} else {	
+		// Coasting forward, updating the bound. The very first log (before INIT)
+		// has no last_event set
+		if(restore_state->last_event == NULL) {
+			reprocess_from = list_head(LPS[lid]->queue_in);
+		} else {
+			reprocess_from = list_next(restore_state->last_event);
+		}
+		reprocessed_events = silent_execution(lid, LPS[lid]->current_base_pointer, reprocess_from, list_next(last_correct_event));
+		statistics_post_lp_data(lid, STAT_SILENT, (double)reprocessed_events);
 	}
-	reprocessed_events = silent_execution(lid, LPS[lid]->current_base_pointer, reprocess_from, list_next(last_correct_event));
-	statistics_post_lp_data(lid, STAT_SILENT, (double)reprocessed_events);
 
 	// Control messages must be rolled back as well
 	rollback_control_message(lid, last_correct_event->timestamp);
