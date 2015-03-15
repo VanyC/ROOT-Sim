@@ -178,11 +178,11 @@ static void LP_main_loop(void *args) {
 		timer event_timer;
 		timer_start(event_timer);
 
-		// account for reprocessing
+		// account for reprocessing // TODO: questo forse si può togliere
 		if(LPS[current_lp]->bound->revwin != NULL)
 			free_revwin(LPS[current_lp]->bound->revwin);
 
-		if(LPS[current_lp]->from_last_ckpt >= LPS[current_lp]->events_in_coasting_forward) {
+		if(1 || LPS[current_lp]->from_last_ckpt >= LPS[current_lp]->events_in_coasting_forward) {
 			__ProcessEvent[current_lp] = ProcessEvent_reverse;
 			LPS[current_lp]->bound->revwin = create_new_revwin(0);
 			printf("LP %d in reverse mode\n", current_lp);

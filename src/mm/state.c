@@ -41,7 +41,7 @@
 #include <communication/communication.h>
 #include <mm/dymelor.h>
 #include <statistics/statistics.h>
-
+#include <queues/reverse.h>
 
 /// Function pointer to switch between the parallel and serial version of SetState
 void (*SetState)(void *new_state);
