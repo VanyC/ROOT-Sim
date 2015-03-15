@@ -43,6 +43,7 @@
 #include <communication/communication.h>
 #include <gvt/gvt.h>
 #include <statistics/statistics.h>
+#include <queues/reverse.h>
 
 #include <mm/modules/ktblmgr/ktblmgr.h>
 
@@ -176,6 +177,19 @@ static void LP_main_loop(void *args) {
 		// Process the event
 		timer event_timer;
 		timer_start(event_timer);
+
+		// account for reprocessing
+		if(LPS[current_lp]->bound->revwin != NULL)
+			free_revwin(LPS[current_lp]->bound->revwin);
+
+		if(LPS[current_lp]->from_last_ckpt >= LPS[current_lp]->events_in_coasting_forward) {
+			__ProcessEvent[current_lp] = ProcessEvent_reverse;
+			LPS[current_lp]->bound->revwin = create_new_revwin(0);
+			printf("LP %d in reverse mode\n", current_lp);
+		} else {
+			__ProcessEvent[current_lp] = ProcessEvent;
+			LPS[current_lp]->bound->revwin = NULL;
+		}
 
 		__ProcessEvent[current_lp](LidToGid(current_lp), current_evt->timestamp, current_evt->type, current_evt->event_content, current_evt->size, current_state);
 

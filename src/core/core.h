@@ -147,6 +147,7 @@ typedef struct _msg_t {
 	unsigned long long	mark;	/// Unique identifier of the message, used for antimessages
 	unsigned long long	rendezvous_mark;	/// Unique identifier of the message, used for rendez-vous events
 //	struct _state_t 	*is_first_event_of;
+	void			*revwin;
 	// Application informations
 	char event_content[MAX_EVENT_SIZE];
 	int size;

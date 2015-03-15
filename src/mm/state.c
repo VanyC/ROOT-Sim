@@ -50,32 +50,35 @@ void (*SetState)(void *new_state);
 
 
 //  TODO: questo è lo stub
-static int events_in_coasting_forward(void) {
+static int events_in_coasting_forward(unsigned int lid) {
 
-	double Fr = 0; // dalle statistiche
-	double de = 0; // dalle statistiche
-	double db = 0; // dalle statistiche
-	double dl = 0; // dalle statistiche
-	double dr = 0; // dalle statistiche
+	double value;
 	double chi = rootsim_config.ckpt_period;	
 
 	// Collecting data
-	Fr = statistics_get_data(STAT_GET_ROLLBACK_FREQ, current_lp);
-	de = statistics_get_data(STAT_GET_EVENT_TIME_LP, current_lp);
-	db = statistics_get_data(STAT_GET_UNDO_EVENT_COST, current_lp);
-	dl = statistics_get_data(STAT_GET_FULL_CKPT_TIME, current_lp);
-	dr = statistics_get_data(STAT_GET_FULL_RECOVERY_TIME, current_lp);
+	double Fr = statistics_get_data(STAT_GET_ROLLBACK_FREQ, lid);
+	double de = statistics_get_data(STAT_GET_EVENT_TIME_LP, lid);
+	double db = statistics_get_data(STAT_GET_UNDO_EVENT_COST, lid);
+	double dl = statistics_get_data(STAT_GET_FULL_CKPT_TIME, lid);
+	double dr = statistics_get_data(STAT_GET_FULL_RECOVERY_TIME, lid);
 
 	// Model
 	double a2 = Fr * (dr - de) / chi;
+
+	if(a2 == 0 || isnan(a2)) {
+		value = chi;
+		goto out;
+	}
+
 	double b = (Fr * de + 2*db) / 2*chi;
 	double c = db/chi - dr - dl;
 	double delta = sqrt(b*b - 2*a2*c);
-	double value = (-b + delta) / a2;
-//	value = (-(Fr*de / 2*chi) - (db/chi) + sqrt((2*db*(2*db + 1) + Fr*de*(Fr*de + 4) / 4*chi) - 4*(Fr*db - de)/2*chi)*(db/chi - dr - dl)) / (Fr * (db - de) / chi);
+	value = (-b + delta) / a2;
+	//value = chi - 1 - (-(Fr*de / 2*chi) - (db/chi) + sqrt((2*db*(2*db + 1) + Fr*de*(Fr*de + 4) / 4*chi) - 4*(Fr*db - de)/2*chi)*(db/chi - dr - dl)) / (Fr * (db - de) / chi);
 
-
-	return (int) value;
+    out:
+	//printf("LP %d: Fr = %f de = %f db = %f dl = %f dr = %f chi = %f val = %f\n", lid, Fr, de, db, dl, dr, chi, value);
+	return (int)value;
 }
 
 
@@ -145,7 +148,7 @@ void LogState(unsigned int lid) {
 	}
 
 	// Update the number of events to process in coasting forward in case of a rollback
-	LPS[lid]->events_in_coasting_forward = events_in_coasting_forward();
+	LPS[lid]->events_in_coasting_forward = events_in_coasting_forward(lid);
 }
 
 
@@ -199,7 +202,7 @@ unsigned int silent_execution(unsigned int lid, void *state_buffer, msg_t *evt, 
 		evt = list_next(evt);
 	}
 
-	__ProcessEvent[lid] = ProcessEvent_reverse;
+//	__ProcessEvent[lid] = ProcessEvent_reverse;
 
     out:
 	LPS[lid]->state = old_state;

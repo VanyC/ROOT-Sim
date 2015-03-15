@@ -364,14 +364,16 @@ inline void free_last_revwin () {
 	history.era[history.last_free] = NULL;
 }
 */
-revwin * create_new_revwin(size_t size) {
+void *create_new_revwin(size_t size) {
 	
 	current_revwin = allocate_reverse_window(size > 0 ? size : REVERSE_WIN_SIZE);
 	
 	return current_revwin;
 }
 
-void free_revwin (revwin *window) {
+void free_revwin (void *w) {
+	revwin *window = (revwin *)w;
+
 	if(window == NULL)
 		return;
 
