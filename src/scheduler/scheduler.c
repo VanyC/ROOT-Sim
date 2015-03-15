@@ -166,6 +166,8 @@ void scheduler_fini(void) {
 static void LP_main_loop(void *args) {
 
 	(void)args; // this is to make the compiler stop complaining about unused args
+	bool mixed;
+	timer event_timer;
 
 	// Save a default context
 	#ifdef ENABLE_ULT
@@ -174,15 +176,16 @@ static void LP_main_loop(void *args) {
 
 	while(true) {
 
+		mixed = false;
+
 		// Process the event
-		timer event_timer;
-		timer_start(event_timer);
 
 		// account for reprocessing // TODO: questo forse si può togliere
 		if(LPS[current_lp]->bound->revwin != NULL)
 			free_revwin(LPS[current_lp]->bound->revwin);
 
 		if(1 || LPS[current_lp]->from_last_ckpt >= LPS[current_lp]->events_in_coasting_forward) {
+			mixed = true;
 			__ProcessEvent[current_lp] = ProcessEvent_reverse;
 			LPS[current_lp]->bound->revwin = create_new_revwin(0);
 //			printf("LP %d in reverse mode\n", current_lp);
@@ -191,9 +194,12 @@ static void LP_main_loop(void *args) {
 			LPS[current_lp]->bound->revwin = NULL;
 		}
 
+		timer_start(event_timer);
 		__ProcessEvent[current_lp](LidToGid(current_lp), current_evt->timestamp, current_evt->type, current_evt->event_content, current_evt->size, current_state);
-
 		int delta_event_timer = timer_value_micro(event_timer);
+
+		if(mixed)
+			finalize_revwin();
 
 		statistics_post_lp_data(current_lp, STAT_EVENT, 1.0);
 		statistics_post_lp_data(current_lp, STAT_EVENT_TIME, delta_event_timer);
