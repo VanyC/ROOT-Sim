@@ -40,17 +40,16 @@
 #include <scheduler/scheduler.h>
 #include <statistics/statistics.h>
 
-timer reverse_instruction_generation;
-static unsigned int revgen_count;
-double revgen_time;
+__thread timer reverse_instruction_generation;
+static __thread unsigned int revgen_count;
 
-static int timestamp = 0;		//! This is the counter used to infer which instructions have to be reversed
-static int current_era = -1;		//! Represents the current era to which the reverse heap refers to
-static int last_era = -1;		//! Specifies the last era index. It is initialized to 1 in order to first create the window
-static addrmap hashmap;			//! Map of the referenced addresses
-static eras history;			//! Collects the reverse windows along the eras
+//static int timestamp = 0;		//! This is the counter used to infer which instructions have to be reversed
+//static int current_era = -1;		//! Represents the current era to which the reverse heap refers to
+//static int last_era = -1;		//! Specifies the last era index. It is initialized to 1 in order to first create the window
+static __thread addrmap hashmap;	//! Map of the referenced addresses
+//static eras history;			//! Collects the reverse windows along the eras
 
-__thread revwin * current_revwin;
+__thread revwin * current_revwin;	//! Pointer to the current reversion window
 
 
 /**
@@ -241,11 +240,11 @@ static inline void create_reverse_instruction (uint64_t value, size_t size) {
 	}
 }
 
-void dump_revwin () {
+/*void dump_revwin () {
 	// print the heap in order to report reverse instrucionts
 	printf("=> Dump of the current reverse heap window [%d]:\n", last_era);
 	printf("\n");
-}
+}*/
 
 /**
  * Check if the address is dirty by looking at the hash map. In case the address
@@ -287,8 +286,9 @@ static inline int is_address_referenced (void *address) {
  */
 void reverse_code_generator (void *address, unsigned int size) {
 	uint64_t value;
+	double revgen_time;
 
-	printf("reverse_code_generator at <%#08llx> (%d bytes)\n", address, size);
+	//printf("reverse_code_generator at <%#08llx> (%d bytes)\n", address, size);
 
 	timer_start(reverse_instruction_generation);
 
