@@ -297,7 +297,6 @@ void reverse_code_generator (void *address, unsigned int size) {
 	// would be restored in future, therefore the subsequent ones are redundant (at least
 	// for now...)
 	if (is_address_referenced(address)) {
-		printf("ref\n");
 		return;
 	}
 
