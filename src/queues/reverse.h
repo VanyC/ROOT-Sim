@@ -34,8 +34,7 @@ typedef struct _eras {
 } eras;
 
 
-static __thread revwin *window;		//! Represents the pointer to the current active reverse window
-
+extern __thread revwin *current_revwin;		//! Represents the pointer to the current active reverse window
 
 /**
  * This will allocate a window on the HEAP of the exefutable file in order
@@ -50,7 +49,7 @@ static __thread revwin *window;		//! Represents the pointer to the current activ
  * it does not to be a good idea since could be less portable and further
  * could open to security exploits.
  */
-void *create_new_revwin(size_t size);
+revwin * create_new_revwin(size_t size);
 
 /**
  * Free the reverse window passed as argument.

@@ -57,10 +57,25 @@ static int events_in_coasting_forward(void) {
 	double db = 0; // dalle statistiche
 	double dl = 0; // dalle statistiche
 	double dr = 0; // dalle statistiche
-	double chi = rootsim_config.ckpt_period;
+	double chi = rootsim_config.ckpt_period;	
+
+	// Collecting data
+	Fr = statistics_get_data(STAT_GET_ROLLBACK_FREQ, current_lp);
+	de = statistics_get_data(STAT_GET_EVENT_TIME_LP, current_lp);
+	db = statistics_get_data(STAT_GET_UNDO_EVENT_COST, current_lp);
+	dl = statistics_get_data(STAT_GET_FULL_CKPT_TIME, current_lp);
+	dr = statistics_get_data(STAT_GET_FULL_RECOVERY_TIME, current_lp);
+
+	// Model
+	double a2 = Fr * (dr - de) / chi;
+	double b = (Fr * de + 2*db) / 2*chi;
+	double c = db/chi - dr - dl;
+	double delta = sqrt(b*b - 2*a2*c);
+	double value = (-b + delta) / a2;
+//	value = (-(Fr*de / 2*chi) - (db/chi) + sqrt((2*db*(2*db + 1) + Fr*de*(Fr*de + 4) / 4*chi) - 4*(Fr*db - de)/2*chi)*(db/chi - dr - dl)) / (Fr * (db - de) / chi);
 
 
-	return (int)(rootsim_config.ckpt_period / 2);
+	return (int) value;
 }
 
 

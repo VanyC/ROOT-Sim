@@ -37,6 +37,7 @@
 #include <queues/reverse.h>
 
 #include <core/timer.h>
+#include <scheduler/scheduler.h>
 #include <statistics/statistics.h>
 
 timer reverse_instruction_generation;
@@ -49,6 +50,7 @@ static int last_era = -1;		//! Specifies the last era index. It is initialized t
 static addrmap hashmap;			//! Map of the referenced addresses
 static eras history;			//! Collects the reverse windows along the eras
 
+__thread revwin * current_revwin;
 
 /**
  * This will allocate a window on the HEAP of the exefutable file in order
@@ -66,22 +68,22 @@ static eras history;			//! Collects the reverse windows along the eras
 static inline revwin *allocate_reverse_window (size_t size) {
 
 //	printf("chiamo allocate_reverse\n");
-	window = malloc(sizeof(revwin));
-	if(window == NULL) {
+	current_revwin = malloc(sizeof(revwin));
+	if(current_revwin == NULL) {
 		perror("Out of memroy!");
 		abort();
 	}
 
-	window->size = size;
-//	window->prot = PROT_EXEC | PROT_READ;
-//	window->flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	window->address = mmap(NULL, size, PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	window->pointer = window->address + size;
+	current_revwin->size = size;
+//	current_revwin->prot = PROT_EXEC | PROT_READ;
+//	current_revwin->flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	current_revwin->address = mmap(NULL, size, PROT_WRITE | PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	current_revwin->pointer = current_revwin->address + size;
 
-//	printf("mmap returned %p\n", window->address);
+//	printf("mmap returned %p\n", current_revwin->address);
 //	fflush(stdout);
 
-	if(window->address == MAP_FAILED) {
+	if(current_revwin->address == MAP_FAILED) {
 		perror("mmap failed");
 		abort();
 	}
@@ -109,7 +111,7 @@ static inline revwin *allocate_reverse_window (size_t size) {
 	}
 */
 
-	return window;
+	return current_revwin;
 }
 
 
@@ -122,12 +124,12 @@ static inline revwin *allocate_reverse_window (size_t size) {
 static inline void add_reverse_insn (char *bytes, size_t size) {
 
 	// since the structure is used as a stack, it is needed to create room for the instruction
-	window->pointer -= size;
+	current_revwin->pointer -= size;
 
-	// printf("=> Attempt to write on the window heap at <%#08lx> (%d bytes)\n", window->pointer, size);
+	// printf("=> Attempt to write on the window heap at <%#08lx> (%d bytes)\n", current_revwin->pointer, size);
 
 	// TODO: probably too expensive, only for debug!
-	if (window->pointer < window->address) {
+	if (current_revwin->pointer < current_revwin->address) {
 		perror("insufficent reverse window memory heap!");
 		exit(-ENOMEM);
 	}
@@ -135,7 +137,7 @@ static inline void add_reverse_insn (char *bytes, size_t size) {
 	// TODO: add timestamp conditional selector
 
 	// copy the instructions to the heap
-	memcpy(window->pointer, bytes, size);
+	memcpy(current_revwin->pointer, bytes, size);
 }
 
 /**
@@ -260,7 +262,7 @@ static inline int is_address_referenced (void *address) {
 	offset %= 64;
 
 	// if the address is not reference yet, insert it and return 0 (false)
-	if (!hashmap.map[index] >> offset) {
+	if ((hashmap.map[index] >> offset) == 0) {
 		hashmap.map[index] |= (1 << offset);
 		return 0;
 	}
@@ -279,7 +281,7 @@ static inline int is_address_referenced (void *address) {
 void reverse_code_generator (void *address, unsigned int size) {
 	uint64_t value;
 
-	printf("\n=== Reverse code generator ===\n");
+	printf("reverse_code_generator at <%#08llx> (%d bytes)\n", address, size);
 
 	timer_start(reverse_instruction_generation);
 
@@ -288,6 +290,7 @@ void reverse_code_generator (void *address, unsigned int size) {
 	// would be restored in future, therefore the subsequent ones are redundant (at least
 	// for now...)
 	if (is_address_referenced(address)) {
+		printf("ref\n");
 		return;
 	}
 
@@ -320,8 +323,8 @@ void reverse_code_generator (void *address, unsigned int size) {
 	
 	// Collecting statistics
 	revgen_time = timer_value_micro(reverse_instruction_generation);
-	statistics_post_lp_data(current_lp(), STAT_REVGEN_TIME, revgen_time);
-	statistics_post_lp_data(current_ld(), STAT_REVGEN, ++revgen_count);
+	statistics_post_lp_data(current_lp, STAT_REVGEN_TIME, revgen_time);
+	statistics_post_lp_data(current_lp, STAT_REVGEN, ++revgen_count);
 
 	//dump_revwin();
 
@@ -361,11 +364,11 @@ inline void free_last_revwin () {
 	history.era[history.last_free] = NULL;
 }
 */
-void *create_new_revwin(size_t size) {
+revwin * create_new_revwin(size_t size) {
 	
-	window = allocate_reverse_window(size > 0 ? size : REVERSE_WIN_SIZE);
+	current_revwin = allocate_reverse_window(size > 0 ? size : REVERSE_WIN_SIZE);
 	
-	return window;
+	return current_revwin;
 }
 
 void free_revwin (revwin *window) {
