@@ -53,6 +53,8 @@ void fossil_collection(unsigned int lid, simtime_t time_barrier) {
 	state_t *state;
 	msg_t *last_kept_event;
 	double committed_events;
+
+	return;
 	
 	time_barrier = 0.7 * time_barrier;
 

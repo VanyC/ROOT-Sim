@@ -185,7 +185,7 @@ static void LP_main_loop(void *args) {
 		if(1 || LPS[current_lp]->from_last_ckpt >= LPS[current_lp]->events_in_coasting_forward) {
 			__ProcessEvent[current_lp] = ProcessEvent_reverse;
 			LPS[current_lp]->bound->revwin = create_new_revwin(0);
-			printf("LP %d in reverse mode\n", current_lp);
+//			printf("LP %d in reverse mode\n", current_lp);
 		} else {
 			__ProcessEvent[current_lp] = ProcessEvent;
 			LPS[current_lp]->bound->revwin = NULL;

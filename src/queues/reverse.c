@@ -40,7 +40,6 @@
 #include <scheduler/scheduler.h>
 #include <statistics/statistics.h>
 
-__thread timer reverse_instruction_generation;
 static __thread unsigned int revgen_count;
 
 //static int timestamp = 0;		//! This is the counter used to infer which instructions have to be reversed
@@ -61,11 +60,10 @@ __thread revwin * current_revwin;	//! Pointer to the current reversion window
 static inline void add_reverse_insn (char *bytes, size_t size) {
 
 	// since the structure is used as a stack, it is needed to create room for the instruction
-	current_revwin->pointer -= size;
+	current_revwin->pointer = (void *)((char *)current_revwin->pointer - size);
 
 	// printf("=> Attempt to write on the window heap at <%#08lx> (%d bytes)\n", current_revwin->pointer, size);
 
-	// TODO: probably too expensive, only for debug!
 	if (current_revwin->pointer < current_revwin->address) {
 		perror("insufficent reverse window memory heap!");
 		exit(-ENOMEM);
@@ -105,7 +103,7 @@ static inline revwin *allocate_reverse_window (size_t size) {
 //	current_revwin->prot = PROT_EXEC | PROT_READ;
 //	current_revwin->flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	current_revwin->address = mmap(NULL, size, PROT_WRITE | PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	current_revwin->pointer = current_revwin->address + size;
+	current_revwin->pointer = (void *)((char *)current_revwin->address + size - 1);
 
 //	printf("mmap returned %p\n", current_revwin->address);
 //	fflush(stdout);
@@ -165,8 +163,6 @@ static inline revwin *allocate_reverse_window (size_t size) {
 static inline void create_reverse_instruction (uint64_t value, size_t size) {
 	char mov[8];		// MOV instruction bytes (at most 9 bytes)
 	char mov2[8];		// second MOV in case of quadword data
-	char jc[2];			// conditional JUMP to skip uneeded instructions
-	char cmp[7];		// compare instruction with the timestamp
 //	int flags = 0;			// TODO: are they necessary? in case move to param
 	size_t mov_size;
 
@@ -255,21 +251,21 @@ static inline void create_reverse_instruction (uint64_t value, size_t size) {
  * @return 1 if the address is present, 0 otherwise
  */
 static inline int is_address_referenced (void *address) {
-	int index;
+	int idx;
 	char offset;
 
 	// TODO: how to handle full map?
 
-	index = ((unsigned long long)address & HMAP_INDEX_MASK) >> HMAP_OFF_MASK_SIZE;
+	idx = ((unsigned long long)address & HMAP_INDEX_MASK) >> HMAP_OFF_MASK_SIZE;
 	offset = (unsigned long long)address & HMAP_OFFSET_MASK;
 
 	// Closure
-	index %= HMAP_SIZE;
+	idx %= HMAP_SIZE;
 	offset %= 64;
 
 	// if the address is not reference yet, insert it and return 0 (false)
-	if ((hashmap.map[index] >> offset) == 0) {
-		hashmap.map[index] |= (1 << offset);
+	if ((hashmap.map[idx] >> offset) == 0) {
+		hashmap.map[idx] |= (1 << offset);
 		return 0;
 	}
 
@@ -287,6 +283,7 @@ static inline int is_address_referenced (void *address) {
 void reverse_code_generator (void *address, unsigned int size) {
 	uint64_t value;
 	double revgen_time;
+	timer reverse_instruction_generation;
 
 	//printf("reverse_code_generator at <%#08llx> (%d bytes)\n", address, size);
 
@@ -378,17 +375,17 @@ void *create_new_revwin(size_t size) {
 }
 
 void free_revwin (void *w) {
-	revwin *window = (revwin *)w;
+	revwin *win = (revwin *)w;
 
-	if(window == NULL)
+	if(win == NULL)
 		return;
 
-	munmap(window->address, window->size);
-	free(window);
+	munmap(win->address, win->size);
+	free(win);
 }
 
 void execute_undo_event(void *w) {
-	revwin *window = (revwin *)w;
+	revwin *win = (revwin *)w;
 	void *revcode;
 //	int ret;
 
@@ -404,7 +401,7 @@ void execute_undo_event(void *w) {
 //	char pushad = 0x60;
 //	add_reverse_insn(pushad, 1);
 
-	revcode = window->pointer;
+	revcode = win->pointer;
 	((void(*)(void))revcode)();
 	
 	//TODO: gestione dei permessi di esecuzione
