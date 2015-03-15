@@ -52,68 +52,6 @@ static eras history;			//! Collects the reverse windows along the eras
 
 __thread revwin * current_revwin;
 
-/**
- * This will allocate a window on the HEAP of the exefutable file in order
- * to write directly on it the reverse code to be executed later on demand.
- *
- * @param size The size to which initialize the new reverse window. If the size paramter is 0, default
- * value will be used (REVERSE_WIN_SIZE)
- *
- * @return The address of the created window
- *
- * Note: mmap is invoked with both write and executable access, but actually
- * it does not to be a good idea since could be less portable and further
- * could open to security exploits.
- */
-static inline revwin *allocate_reverse_window (size_t size) {
-
-//	printf("chiamo allocate_reverse\n");
-	current_revwin = malloc(sizeof(revwin));
-	if(current_revwin == NULL) {
-		perror("Out of memroy!");
-		abort();
-	}
-
-	current_revwin->size = size;
-//	current_revwin->prot = PROT_EXEC | PROT_READ;
-//	current_revwin->flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	current_revwin->address = mmap(NULL, size, PROT_WRITE | PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	current_revwin->pointer = current_revwin->address + size;
-
-//	printf("mmap returned %p\n", current_revwin->address);
-//	fflush(stdout);
-
-	if(current_revwin->address == MAP_FAILED) {
-		perror("mmap failed");
-		abort();
-	}
-
-	// TODO: move it out?
-	bzero(&hashmap.map, sizeof(hashmap.map));
-
-
-	// TODO: modificare la gestione di last_free come negli unix file descriptor
-	// check if the entry is empty, if this is the case then fill it up with the new
-	// window, otherwise it aborts. Note: the last free slot pointer will be incremented
-
-	// check if space is enough, otherwise it aborts
-/*	if(history.last_free >= sizeof(history.era)){
-		perror("too much eras");
-		abort();
-	}
-
-	if(history.era[history.last_free] == NULL){
-		history.era[history.last_free] = window;
-		history.last_free++;
-	} else {
-		perror("unable to get era's descriptor");
-		abort();
-	}
-*/
-
-	return current_revwin;
-}
-
 
 /**
  * Writes the reverse instruction passed on the heap reverse window.
@@ -139,6 +77,75 @@ static inline void add_reverse_insn (char *bytes, size_t size) {
 	// copy the instructions to the heap
 	memcpy(current_revwin->pointer, bytes, size);
 }
+
+
+/**
+ * This will allocate a window on the HEAP of the exefutable file in order
+ * to write directly on it the reverse code to be executed later on demand.
+ *
+ * @param size The size to which initialize the new reverse window. If the size paramter is 0, default
+ * value will be used (REVERSE_WIN_SIZE)
+ *
+ * @return The address of the created window
+ *
+ * Note: mmap is invoked with both write and executable access, but actually
+ * it does not to be a good idea since could be less portable and further
+ * could open to security exploits.
+ */
+static inline revwin *allocate_reverse_window (size_t size) {
+	char ret[1];
+
+//	printf("chiamo allocate_reverse\n");
+	current_revwin = malloc(sizeof(revwin));
+	if(current_revwin == NULL) {
+		perror("Out of memroy!");
+		abort();
+	}
+
+	current_revwin->size = size;
+//	current_revwin->prot = PROT_EXEC | PROT_READ;
+//	current_revwin->flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	current_revwin->address = mmap(NULL, size, PROT_WRITE | PROT_EXEC | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	current_revwin->pointer = current_revwin->address + size;
+
+//	printf("mmap returned %p\n", current_revwin->address);
+//	fflush(stdout);
+
+	if(current_revwin->address == MAP_FAILED) {
+		perror("mmap failed");
+		abort();
+	}
+
+	// TODO: move it out?
+	bzero(&hashmap.map, sizeof(hashmap.map));
+
+	
+	// Adds the final RET to the base of the window
+	ret[0] = 0xc3;
+	add_reverse_insn(ret, sizeof(ret));
+
+	// TODO: modificare la gestione di last_free come negli unix file descriptor
+	// check if the entry is empty, if this is the case then fill it up with the new
+	// window, otherwise it aborts. Note: the last free slot pointer will be incremented
+
+	// check if space is enough, otherwise it aborts
+/*	if(history.last_free >= sizeof(history.era)){
+		perror("too much eras");
+		abort();
+	}
+
+	if(history.era[history.last_free] == NULL){
+		history.era[history.last_free] = window;
+		history.last_free++;
+	} else {
+		perror("unable to get era's descriptor");
+		abort();
+	}
+*/
+
+	return current_revwin;
+}
+
 
 /**
  * Private function used to create the new reversed MOV instruction and
@@ -383,6 +390,31 @@ void free_revwin (void *w) {
 
 void execute_undo_event(void *w) {
 	revwin *window = (revwin *)w;
+	void *revcode;
+//	int ret;
+
+	//TODO: gestione dei permessi di esecuzione
+/*	ret = mprotect(revcode, window->size, PROT_EXEC);
+	if(ret < 0) {
+		perror("Error on giving executable grant to current revwin\n");
+		abort();
+	}
+*/	
+	// Esecuzione della revwin
+	// TODO: è necessario anche salvare i valori dei registri, prima?
+//	char pushad = 0x60;
+//	add_reverse_insn(pushad, 1);
+
+	revcode = window->pointer;
+	((void(*)(void))revcode)();
+	
+	//TODO: gestione dei permessi di esecuzione
+/*	ret = mprotect(revcode, window->size, PROT_WRITE);
+	if(ret < 0) {
+		perror("Error on giving write grant to current revwin\n");
+		abort();
+	}
+*/
 }
 
 
