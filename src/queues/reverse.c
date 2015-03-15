@@ -90,7 +90,7 @@ static inline void add_reverse_insn (char *bytes, size_t size) {
  * could open to security exploits.
  */
 static inline revwin *allocate_reverse_window (size_t size) {
-	char push = 0x50;
+	char push = 0x58;
 	char ret = 0xc3;
 
 //	printf("chiamo allocate_reverse\n");
@@ -168,7 +168,7 @@ static inline void create_reverse_instruction (uint64_t address, uint64_t value,
 	size_t mov_size;
 
 	
-	printf("creating reverse instruction: address= %llx, value= %llx, size= %d\n", address, value, size);
+//	printf("creating reverse instruction: address= %llx, value= %llx, size= %d\n", address, value, size);
 
 	// create the MOV to store the destination address movabs $0x11223344aabbccdd,%rax: 48 b8 dd cc bb aa 44 33 22 11
 	mov[0] = 0x48;
@@ -428,9 +428,9 @@ void execute_undo_event(void *w) {
 */
 }
 
-void finalize_revwin() {
+void finalize_revwin(void) {
 	char pop = 0x50;
-	add_reverse_insn(pop, 1);
+	add_reverse_insn(&pop, 1);
 }
 
 #endif /* HAVE_MIXED_SS */
