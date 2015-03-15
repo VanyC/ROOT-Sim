@@ -90,7 +90,8 @@ static inline void add_reverse_insn (char *bytes, size_t size) {
  * could open to security exploits.
  */
 static inline revwin *allocate_reverse_window (size_t size) {
-	char ret[1];
+	char push = 0x50;
+	char ret = 0xc3;
 
 //	printf("chiamo allocate_reverse\n");
 	current_revwin = malloc(sizeof(revwin));
@@ -118,8 +119,8 @@ static inline revwin *allocate_reverse_window (size_t size) {
 
 	
 	// Adds the final RET to the base of the window
-	ret[0] = 0xc3;
-	add_reverse_insn(ret, sizeof(ret));
+	add_reverse_insn(&ret, sizeof(ret));
+	add_reverse_insn(&push, sizeof(ret));
 
 	// TODO: modificare la gestione di last_free come negli unix file descriptor
 	// check if the entry is empty, if this is the case then fill it up with the new
@@ -160,37 +161,49 @@ static inline revwin *allocate_reverse_window (size_t size) {
  * @param value Tha immediate value has to be emdedded into the instruction
  * @param size The size of the data value emdedded
  */
-static inline void create_reverse_instruction (uint64_t value, size_t size) {
-	char mov[8];		// MOV instruction bytes (at most 9 bytes)
-	char mov2[8];		// second MOV in case of quadword data
+static inline void create_reverse_instruction (uint64_t address, uint64_t value, size_t size) {
+	char mov[12];		// MOV instruction bytes (at most 9 bytes)
+	char mov2[12];		// second MOV in case of quadword data
 //	int flags = 0;			// TODO: are they necessary? in case move to param
 	size_t mov_size;
+
+	
+	printf("creating reverse instruction: address= %llx, value= %llx, size= %d\n", address, value, size);
+
+	// create the MOV to store the destination address movabs $0x11223344aabbccdd,%rax: 48 b8 dd cc bb aa 44 33 22 11
+	mov[0] = 0x48;
+	mov[1] = 0xb8;
+	memcpy(mov+2, &address, 8);
+	add_reverse_insn(mov, 10);
 
 	// create the new MOV instruction accordingly to the data size
 	mov[0] = (uint64_t) 0;
 	switch(size) {
 		case 1:	// BYTE
-			// this is the case of the movb: c6 07 00
+			// this is the case of the movb $0x00,(%rax): c6 00 00
 			mov[0] = 0xc6;
-			mov[1] = 0x07;
-			mov[2] = (uint8_t) value;
+			mov[1] = 0x00;
+			//mov[2] = (uint8_t) value;
+			memcpy(mov+2, &value, 1);
 			mov_size = 3;
 			break;
 
 		case 2:	// WORD
-			// this is the case of the movw: 66 c7 07 00 00
+			// this is the case of the movw $0x0000,(%rax): 66 c7 00 00 00
 			mov[0] = 0x66;
 			mov[1] = 0xc7;
-			mov[2] = 0x07;
-			mov[3] = (uint16_t) value;
+			mov[2] = 0x00;
+			//mov[3] = (uint16_t) value;
+			memcpy(mov+3, &value, 2);
 			mov_size = 5;
 			break;
 
 		case 4:	// LONG-WORD
-			// this is the case of the movl: c7 07 00 00 00 00
+			// this is the case of the movl $0x000000,(%rax): c7 00 00 00 00 00
 			mov[0] = 0xc7;
-			mov[1] = 0x07;
-			mov[2] = (uint32_t) value;
+			mov[1] = 0x00;
+			//mov[2] = (uint32_t) value;
+			memcpy(mov+2, &value, 4);
 			mov_size = 6;
 			break;
 
@@ -198,16 +211,18 @@ static inline void create_reverse_instruction (uint64_t value, size_t size) {
 			// this is the case of the movq, however in such a case the immediate cannot be
 			// more than 32 bits width; therefore we need two successive mov instructions
 			// to transfer the upper and bottom part of the value through the 32 bits immediate
-			// movq: 48 c7 47 00 00 00 00 00
+			// movq: 48 c7 00 25  00 00 00 00  00 00 00 00
 			mov[0] = mov2[0] = 0x48;
 			mov[1] = mov2[1] = 0xc7;
-			mov[2] = mov2[2] = 0x47;
-			mov[3] = mov2[3] = 0x00;
-			mov[4] = (uint32_t) value;
+			mov[2] = mov2[2] = 0x00;
+			//mov[4] = (uint32_t) value;
+			memcpy(mov+3, &value, 4);
 
 			// second part
-			mov2[4] = (uint32_t) (value >> 32);
-			mov_size = 8;
+			//mov2[4] = (uint32_t) (value >> 32);
+			value = value >> 32;
+			memcpy(mov2+3, &value, 4);
+			mov_size = 7;
 			break;
 
 		default:
@@ -322,7 +337,7 @@ void reverse_code_generator (void *address, unsigned int size) {
 	// now the idea is to generate the reverse MOV instruction that will
 	// restore the previous value 'value' stored in the memory address
 	// based on the operand size selects the proper MOV instruction bytes
-	create_reverse_instruction(value, size);
+	create_reverse_instruction(address, value, size);
 	
 	// Collecting statistics
 	revgen_time = timer_value_micro(reverse_instruction_generation);
@@ -413,6 +428,10 @@ void execute_undo_event(void *w) {
 */
 }
 
+void finalize_revwin() {
+	char pop = 0x50;
+	add_reverse_insn(pop, 1);
+}
 
 #endif /* HAVE_MIXED_SS */
 
