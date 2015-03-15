@@ -214,9 +214,11 @@ unsigned int silent_execution(unsigned int lid, void *state_buffer, msg_t *evt, 
 static void undo_events(unsigned int lid, state_t *s) {
 	msg_t *evt;
 
-
 	evt = s->last_event;
-	while(evt->revwin != NULL) {
+	if(evt == NULL)
+		return;
+
+	while(evt != NULL && evt->revwin != NULL) {
 
 		execute_undo_event(evt->revwin);
 		free_revwin(evt->revwin);
