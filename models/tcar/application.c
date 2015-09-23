@@ -28,6 +28,8 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 			}
 			SetState(pointer);
 
+			pointer->trails = 0;
+
 			if(NUM_CELLE_OCCUPATE > n_prc_tot){
 				rootsim_error(true, "%s:%d: Require more cell than available LPs\n", __FILE__, __LINE__);
 			}
@@ -141,6 +143,8 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 // funzione dell'applicazione invocata dalla piattaforma
 // per stabilire se la simulazione e' terminata
 int OnGVT(unsigned int me, lp_state_type *snapshot) {
+
+	printf("%d: trails = %d\n", me, snapshot->trails);
 
  	if(snapshot->trails > VISITE_MINIME)
 		return true;
