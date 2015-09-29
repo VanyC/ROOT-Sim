@@ -28,14 +28,14 @@
 
 
 #ifndef NUM_CELLE_OCCUPATE
-	#define NUM_CELLE_OCCUPATE	8
+	#define NUM_CELLE_OCCUPATE	2
 #endif
 #ifndef ROBOT_PER_CELLA
-	#define ROBOT_PER_CELLA 2
+	#define ROBOT_PER_CELLA 1
 #endif
 
 #ifndef VISITE_MINIME
-	#define VISITE_MINIME	1000
+	#define VISITE_MINIME	10
 #endif
 
 
