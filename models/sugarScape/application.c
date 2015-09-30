@@ -17,6 +17,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 	
 	int i;
 	int receiver;
+	int direction_receiver = -1;
 	
 	simtime_t timestamp = 0;
 
@@ -29,7 +30,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 			if(current_cell == NULL){
 				rootsim_error(true, "%s:%d: Unable to allocate memory!\n", __FILE__, __LINE__);
 			}
-			current_cell->my_state = (state_cell *)malloc(sizeof(state_cel));
+			current_cell->my_state = (state_cell *)malloc(sizeof(state_cell));
 
 			SetState(current_cell);
 			
@@ -109,7 +110,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 					break;
 				}
 				timestamp = now + (simtime_t) (TIME_STEP);
-
+				receiver = GetReceiver(TOPOLOGY_TORUS, direction_receiver); //direction
 				ScheduleNewEvent(receiver, timestamp, UPDATE_NEIGHBORS, &new_event_content, sizeof(new_event_content));
 			}
 
@@ -162,6 +163,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 				if(current_cell->neighbours_state[i].sugar_tank > max_sugar_cell && !current_cell->neighbours_state[i].occupied) {
 					//The current cell eats the sugar of the new cell
 					receiver = current_cell->neighbours_state[i].id;
+					direction_receiver = i;
 					max_sugar_cell = current_cell->neighbours_state[i].sugar_tank;
 					
 				}
@@ -171,14 +173,13 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 			new_event_content.direction_origin = -1; // TODO? Who is my direction
 			new_event_content.occupied = 1;
 			
-			
 			new_event_content.vision = current_cell->cell_agent->vision; 
 			new_event_content.metabolic_rate = current_cell->cell_agent->metabolic_rate;     
 			new_event_content.max_age = current_cell->cell_agent->max_age;            
 			new_event_content.age = current_cell->cell_agent->age;                
 			new_event_content.wealth = current_cell->cell_agent->wealth; 
 					
-			receiver = GetReceiver(TOPOLOGY_TORUS, receiver); //direction		
+			receiver = GetReceiver(TOPOLOGY_TORUS, direction_receiver); //direction		
 					
 			timestamp= now + (simtime_t) (TIME_STEP * Random());
 			ScheduleNewEvent(receiver, timestamp, CELL_IN, &new_event_content, sizeof(new_event_content));
