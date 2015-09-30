@@ -8,7 +8,7 @@
 //TODO: how can i used a distribution between [1,6] for ex
 //TODO: parametrization is needed
 //TODO: how long the model is working
-
+//TODO: odd for the model????
 void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *event_content, int event_size, lp_cell *current_cell) {
 
 	event_content_type new_event_content;
@@ -17,7 +17,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 	
 	int i;
 	int receiver;
-	int direction_receiver = -1;
+	//~ int direction_receiver = -1;
 	
 	simtime_t timestamp = 0;
 
@@ -56,25 +56,25 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 				if(me < (NUM_CELL_OCCUPIED/2) || me >= ((n_prc_tot)-(NUM_CELL_OCCUPIED/2))) {
 						// A CELL_IN event is been generate
 					ScheduleNewEvent(me, timestamp, CELL_IN, &new_event_content, sizeof(new_event_content));
+					printf("init model %d...\n", me);
 				}
 			} else {
 				if(me <= (NUM_CELL_OCCUPIED / 2) || me >= ((n_prc_tot) - (NUM_CELL_OCCUPIED / 2))){
 						// A CELL_IN event is been generate
 					ScheduleNewEvent(me, timestamp, CELL_IN, &new_event_content, sizeof(new_event_content));
+					printf("init model 2 - %d...\n", me);
 				}
 			}
-
 			break;
-
-
-		case CELL_IN:
+		case CELL_IN: {
 			current_cell->events++;
-			
+			printf("cell in from %d..\n", me);
 			//Is the first time, te cell is empty => we need a new agent in that cell
 			if(event_content->occupied == 0 && event_content->id_cell == me ) { 
 				assignAgent(current_cell->cell_agent);
 			}
 			else { //Is a migration from a neighbour
+				//~ memcpy(current_cell->cell_agent, event_content, sizeof(agent));
 				current_cell->cell_agent->vision = event_content->vision; 
 				current_cell->cell_agent->metabolic_rate = event_content->metabolic_rate;     
 				current_cell->cell_agent->max_age = event_content->max_age;            
@@ -96,32 +96,37 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 				receiver = current_cell->neighbours_state[i].id;
 				
 				switch (i){
-					case N: //updating northern neighbour, i am coming from south
-						new_event_content.direction_origin = S;
+					case DIRECTION_N: //updating northern neighbour, i am coming from south
+						new_event_content.direction_origin = DIRECTION_S;
 					 break;
-					case S: //updating southern neighbour, i am coming from north
-						new_event_content.direction_origin = N;
+					case DIRECTION_S: //updating southern neighbour, i am coming from north
+						new_event_content.direction_origin = DIRECTION_N;
 					break;
-					case E: 
-						new_event_content.direction_origin = W;
+					case DIRECTION_E: 
+						new_event_content.direction_origin = DIRECTION_W;
 					break;
-					case W: 
-						new_event_content.direction_origin = E;
+					case DIRECTION_W: //TODO: rootsim has directions!!!!!!!
+						new_event_content.direction_origin = DIRECTION_E;
 					break;
 				}
 				timestamp = now + (simtime_t) (TIME_STEP);
-				receiver = GetReceiver(TOPOLOGY_TORUS, direction_receiver); //direction
+				printf("print direction_receiver: %d\n",i);
+
+				receiver = GetReceiver(TOPOLOGY_TORUS, i); //direction
+				printf("print direction: %d\n",receiver);
+				if(receiver == -1)
+					abort();
 				ScheduleNewEvent(receiver, timestamp, UPDATE_NEIGHBORS, &new_event_content, sizeof(new_event_content));
+				printf("update neighbors from %d....\n", me);
 			}
 
 			// A CEL_OUT event is been generated
 			timestamp = now + (simtime_t) (TIME_STEP * Random());
 			ScheduleNewEvent(me, timestamp, CELL_OUT, NULL, 0);
-
+		}
 			break;
-
-		case UPDATE_ME:
-		
+		case UPDATE_ME: //die of an agent NOOOO here, better in CELL_IN problma de consistencia!!!!!!!
+			//this not happen the first time
 			if(current_cell->my_state->occupied) { //if the cell is occupied, the agent in that cell loses wealth in a metabolicRate proportion
 				current_cell->cell_agent->wealth-=current_cell->cell_agent->metabolic_rate;
 				
@@ -141,15 +146,16 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 			else  current_cell->my_state->sugar_tank = current_cell->my_state->sugar_capacity;
 			
 			timestamp= now + (simtime_t) (TIME_STEP);
+			printf("update me from %d...\n", me);
 			ScheduleNewEvent(me, timestamp, UPDATE_ME, NULL, 0);
 
 			break;
 			
 		case UPDATE_NEIGHBORS:
-
+printf("inside before update neighbors from %d....\n", me);
 			current_cell->neighbours_state[event_content->direction_origin].sugar_tank = event_content->sugar_tank;
 			current_cell->neighbours_state[event_content->direction_origin].occupied = event_content->occupied;
-
+printf("inside of update neigh from %d...\n", me);
 			break;
 
 		case CELL_OUT: //PF
@@ -163,10 +169,15 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 				if(current_cell->neighbours_state[i].sugar_tank > max_sugar_cell && !current_cell->neighbours_state[i].occupied) {
 					//The current cell eats the sugar of the new cell
 					receiver = current_cell->neighbours_state[i].id;
-					direction_receiver = i;
+					//~ direction_receiver = i;
 					max_sugar_cell = current_cell->neighbours_state[i].sugar_tank;
+					break;
 					
 				}
+			}
+			
+			if(i >= N_DIR) {
+				i = RandomRange(0, N_DIR - 1);
 			}
 			
 			new_event_content.id_cell = me; //this is just to indicate that is not a new agent, just a migration
@@ -179,11 +190,15 @@ void ProcessEvent(int me, simtime_t now, int event_type, event_content_type *eve
 			new_event_content.age = current_cell->cell_agent->age;                
 			new_event_content.wealth = current_cell->cell_agent->wealth; 
 					
-			receiver = GetReceiver(TOPOLOGY_TORUS, direction_receiver); //direction		
+			receiver = GetReceiver(TOPOLOGY_TORUS, i); //direction		
 					
 			timestamp= now + (simtime_t) (TIME_STEP * Random());
+				if(receiver == -1)
+					abort();
 			ScheduleNewEvent(receiver, timestamp, CELL_IN, &new_event_content, sizeof(new_event_content));
+			//~ ScheduleNewEvent(receiver, timestamp, CELL_IN, current_cell->cell_agent, sizeof(agent));
 			break;
+
       	default:
 			rootsim_error(true, "Error: unsupported event: %d\n", event_type);
 			break;

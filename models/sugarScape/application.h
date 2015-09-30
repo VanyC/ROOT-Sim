@@ -17,10 +17,10 @@
 
 //DIRECTIONS 
 #define N_DIR 4
-#define N	0
-#define S	1
-#define E	2
-#define W	3
+//~ #define N	0
+//~ #define S	1
+//~ #define E	2
+//~ #define W	3
 
 #define ALPHA 3.5 
 #ifndef NUM_CELL_OCCUPIED
@@ -64,7 +64,7 @@ typedef struct _lp_cell{
 	int events;
 	state_cell *my_state; //my state
 	agent *cell_agent;
-	struct _state_cell neighbours_state[4]; //state of my neigbours
+	struct _state_cell neighbours_state[N_DIR]; //state of my neigbours
 } lp_cell;
 
 //-----------------------------------------
@@ -74,6 +74,8 @@ typedef struct _lp_cell{
 void initCell(lp_cell *current_cell, int me);
 void assignAgent(agent *cell_agent);
 void initEvent(event_content_type *new_event_content);
+//------TEST--------
+void printCellState(lp_cell *current_cell);
 //------Behavior of neighbours
 //int findNeighbour(unsigned int sender);
 //bool isValidNeighbour(unsigned int sender, unsigned int neighbour);

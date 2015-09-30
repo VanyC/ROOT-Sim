@@ -47,6 +47,14 @@ void initEvent(event_content_type *new_event_content) {
 	new_event_content->age = -1;                      
 	new_event_content->wealth = -1;	
 }
+
+void printCellState(lp_cell *current_cell) {
+	printf("CELL Informartion:\n");
+	printf("- id: %d\n",current_cell->my_state->id);
+	printf("- occupied: %d\n",current_cell->my_state->occupied);
+	printf("- capacity: %d\n",current_cell->my_state->sugar_capacity);
+	printf("- sugar_tank: %d\n",current_cell->my_state->sugar_tank);
+}
 /*	
 bool isValidNeighbour(unsigned int sender, unsigned int neighbour) {
 
