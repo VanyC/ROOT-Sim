@@ -28,18 +28,19 @@ void initCell(lp_cell *current_cell, int me) {
 }			
 
 void assignAgent(agent *cell_agent) {
-	cell_agent->vision = N_DIR;
-	cell_agent->metabolic_rate = Random()*10; 
-	cell_agent->max_age = Random()*100;                   
+	cell_agent->vision = Uniform()*N_DIR; //U[1,6] ?????????????????????
+	cell_agent->metabolic_rate = Uniform()*10; //U[1,4] 
+	cell_agent->max_age = Uniform()*100;     //U[60,100]              
 	cell_agent->age = Random()*10;                      
-	cell_agent->wealth = Random()*100;
+	cell_agent->wealth = Uniform()*100; //U[5,25]
 }
 
 void initEvent(event_content_type *new_event_content) {		
 	new_event_content->id_cell = -1;
 	new_event_content->direction_origin = -1;
 	new_event_content->sugar_tank = -1;
-	new_event_content->occupied = -1;
+	new_event_content->occupied = 0;
+	new_event_content->newagent = 0;
 	
 	new_event_content->vision = -1;                   
 	new_event_content->metabolic_rate = -1;           
@@ -54,6 +55,14 @@ void printCellState(lp_cell *current_cell) {
 	printf("- occupied: %d\n",current_cell->my_state->occupied);
 	printf("- capacity: %d\n",current_cell->my_state->sugar_capacity);
 	printf("- sugar_tank: %d\n",current_cell->my_state->sugar_tank);
+}
+void deadAgent(agent *current_agent) {
+	vision = -1;                   
+	metabolic_rate = -1;           
+	max_age = -1;                  
+	age  = -1;                      
+	wealth  = -1;
+	//free(current_agent);     
 }
 /*	
 bool isValidNeighbour(unsigned int sender, unsigned int neighbour) {

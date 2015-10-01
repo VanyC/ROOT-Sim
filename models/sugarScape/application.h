@@ -10,19 +10,15 @@
 #define TIME_STEP 1.0
 
 // EVENT TYPES
-#define CELL_IN	        1          //an agent arrives to a cell 
+#define CELL_IN	            1          //an agent arrives to a cell 
 #define CELL_OUT	        2          //an agent leaves a cell
 #define UPDATE_NEIGHBORS	3          //update the states of its neighbours 
-#define UPDATE_ME         4          //every step a cell sould update its own state
+#define UPDATE_ME           4          //every step a cell sould update its own state
 
 //DIRECTIONS 
 #define N_DIR 4
-//~ #define N	0
-//~ #define S	1
-//~ #define E	2
-//~ #define W	3
 
-#define ALPHA 3.5 
+#define ALPHA 1 
 #ifndef NUM_CELL_OCCUPIED
 	#define NUM_CELL_OCCUPIED	2
 #endif
@@ -31,18 +27,25 @@
 	#define MAX_EVENTS	1000
 #endif
 
+#ifndef N_AGENTS
+	#define N_AGENTS	250 //initial # of agents, created randomly
+#endif
+
+#define LATT_LENGHT    	50
+
 typedef struct _event_content_type {
 	//about the cell
 	int id_cell;
 	int direction_origin;
 	int sugar_tank;
 	bool occupied;
+	bool newagent;
 	//about the agent of the cell 
 	int vision;                   
 	int metabolic_rate;           
 	int max_age;                  
 	int age;                      
-	int wealth;                   
+	int wealth;                 
 } event_content_type;
 
 typedef struct _agent{
@@ -76,7 +79,8 @@ void assignAgent(agent *cell_agent);
 void initEvent(event_content_type *new_event_content);
 //------TEST--------
 void printCellState(lp_cell *current_cell);
-//------Behavior of neighbours
+//------Behavior
+void deadAgent(agent *current_agent);
 //int findNeighbour(unsigned int sender);
 //bool isValidNeighbour(unsigned int sender, unsigned int neighbour);
 //int GetNeighbourId(unsigned int sender, unsigned int neighbour);
