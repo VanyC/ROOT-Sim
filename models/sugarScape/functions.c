@@ -28,26 +28,46 @@ void initCell(lp_cell *current_cell, int me) {
 }			
 
 void assignAgent(agent *cell_agent) {
-	cell_agent->vision = Uniform()*N_DIR; //U[1,6] ?????????????????????
-	cell_agent->metabolic_rate = Uniform()*10; //U[1,4] 
-	cell_agent->max_age = Uniform()*100;     //U[60,100]              
+	cell_agent->vision = (Random()*(N_DIR-1))+1;           //U[1,N_DIR] -> (Random()*(max-min))+min
+	cell_agent->metabolic_rate = (Random()*(N_DIR-1))+1;       //U[1,4] 
+	cell_agent->max_age = (Random()*(100-60))+60;     //U[60,100]              
 	cell_agent->age = Random()*10;                      
-	cell_agent->wealth = Uniform()*100; //U[5,25]
+	cell_agent->wealth = (Random()*(25-5))+5;;         //U[5,25] 
 }
 
-void initEvent(event_content_type *new_event_content) {		
-	new_event_content->id_cell = -1;
-	new_event_content->direction_origin = -1;
-	new_event_content->sugar_tank = -1;
-	new_event_content->occupied = 0;
-	new_event_content->newagent = 0;
+void initEvent(event_migrate *new_event_content) {		
+	new_event_content->info_cell.id_cell = -1;
+	new_event_content->info_cell.direction_origin = -1;
+	new_event_content->info_cell.sugar_tank = -1;
+	new_event_content->info_cell.occupied = 0;
+	new_event_content->info_cell.newagent = 0;
 	
-	new_event_content->vision = -1;                   
-	new_event_content->metabolic_rate = -1;           
-	new_event_content->max_age = -1;                  
-	new_event_content->age = -1;                      
-	new_event_content->wealth = -1;	
+	new_event_content->info_agent.vision = -1;                   
+	new_event_content->info_agent.metabolic_rate = -1;           
+	new_event_content->info_agent.max_age = -1;                  
+	new_event_content->info_agent.age = -1;                      
+	new_event_content->info_agent.wealth = -1;	
 }
+
+int directionOriginDepNeighbours(int direction) {
+	int my_direction = -1;
+	switch (direction){
+		case DIRECTION_N: //updating northern neighbour, i am coming from south
+			my_direction = DIRECTION_S;
+		 break;
+		case DIRECTION_S: //updating southern neighbour, i am coming from north
+			my_direction = DIRECTION_N;
+		break;
+		case DIRECTION_E: 
+			my_direction = DIRECTION_W;
+		break;
+		case DIRECTION_W: 
+			my_direction = DIRECTION_E;
+		break;
+	}
+	return my_direction;
+}
+			
 
 void printCellState(lp_cell *current_cell) {
 	printf("CELL Informartion:\n");
@@ -57,11 +77,11 @@ void printCellState(lp_cell *current_cell) {
 	printf("- sugar_tank: %d\n",current_cell->my_state->sugar_tank);
 }
 void deadAgent(agent *current_agent) {
-	vision = -1;                   
-	metabolic_rate = -1;           
-	max_age = -1;                  
-	age  = -1;                      
-	wealth  = -1;
+	current_agent->vision = -1;                   
+	current_agent->metabolic_rate = -1;           
+	current_agent->max_age = -1;                  
+	current_agent->age  = -1;                      
+	current_agent->wealth  = -1;
 	//free(current_agent);     
 }
 /*	

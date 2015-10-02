@@ -31,22 +31,28 @@
 	#define N_AGENTS	250 //initial # of agents, created randomly
 #endif
 
-#define LATT_LENGHT    	50
+#define LATITUDE_LENGHT    	50
 
-typedef struct _event_content_type {
-	//about the cell
+typedef struct _event_cell {
 	int id_cell;
 	int direction_origin;
 	int sugar_tank;
 	bool occupied;
-	bool newagent;
-	//about the agent of the cell 
+	bool newagent;                 
+} event_cell;
+
+typedef struct _event_agent {
 	int vision;                   
 	int metabolic_rate;           
 	int max_age;                  
 	int age;                      
-	int wealth;                 
-} event_content_type;
+	int wealth;
+} event_agent;
+
+typedef struct _event_migrate {
+	struct _event_agent info_agent;
+	struct _event_cell info_cell;
+} event_migrate;
 
 typedef struct _agent{
 	int vision;                   // The max # of cells an agent can see
@@ -76,7 +82,7 @@ typedef struct _lp_cell{
 //------INIT--------
 void initCell(lp_cell *current_cell, int me);
 void assignAgent(agent *cell_agent);
-void initEvent(event_content_type *new_event_content);
+void initEvent(event_migrate *new_event_content);
 //------TEST--------
 void printCellState(lp_cell *current_cell);
 //------Behavior
