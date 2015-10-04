@@ -20,7 +20,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 	switch(event_type) {
 
 		case INIT: 
-
+	
 			current_cell = (lp_cell *)malloc(sizeof(lp_cell));
 			
 			if(current_cell == NULL){
@@ -47,22 +47,22 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			
 			new_event_content.info_agent.vision = new_event_content.info_agent.metabolic_rate = new_event_content.info_agent.max_age = -1;
 			new_event_content.info_agent.age = new_event_content.info_agent.wealth = -1;
-
+			new_event_content.info_cell.newagent = RandomRange(0,1);
 
 			timestamp = now + (simtime_t)(TIME_STEP * Random());
 			
-			if((NUM_CELL_OCCUPIED % 2) == 0){
-				//First and last cell have to be occuped 
-				if(me < (NUM_CELL_OCCUPIED/2) || me >= ((n_prc_tot)-(NUM_CELL_OCCUPIED/2))) {
-						// A CELL_IN event is been generate
-					ScheduleNewEvent(me, timestamp, CELL_IN, &new_event_content, sizeof(event_migrate));
-					printf("init model %d...\n", me);
-				}
-			} else {
-				if(me <= (NUM_CELL_OCCUPIED / 2) || me >= ((n_prc_tot) - (NUM_CELL_OCCUPIED / 2))){
-						// A CELL_IN event is been generate
-					ScheduleNewEvent(me, timestamp, CELL_IN, &new_event_content, sizeof(event_migrate));
-					printf("init model 2 - %d...\n", me);
+			if(new_event_content.info_cell.newagent){
+				if((NUM_CELL_OCCUPIED % 2) == 0){
+					//First and last cell have to be occuped 
+					if(me < (NUM_CELL_OCCUPIED/2) || me >= ((n_prc_tot)-(NUM_CELL_OCCUPIED/2))) {
+							// A CELL_IN event is been generate
+						ScheduleNewEvent(me, timestamp, CELL_IN, &new_event_content, sizeof(event_migrate));
+					}
+				} else {
+					if(me <= (NUM_CELL_OCCUPIED / 2) || me >= ((n_prc_tot) - (NUM_CELL_OCCUPIED / 2))){
+							// A CELL_IN event is been generate
+						ScheduleNewEvent(me, timestamp, CELL_IN, &new_event_content, sizeof(event_migrate));
+					}
 				}
 			}
 			break;
@@ -74,15 +74,12 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			
 			bool dead_agent = 0; 
 			
-			printf("cell in from %d..\n", me);
 			//If is the first time, the cell is empty => we need a new agent in that cell
-			if(event->info_cell.occupied == 0 && event->info_cell.newagent) {
-				printf("new agent..!\n"); 
+				if(event->info_cell.occupied == 0 && event->info_cell.newagent) {
 				assignAgent(current_cell->cell_agent);
 			}
 			else { //If is a migration from a neighbour => copy all the data of the agent from the event
 				//~ memcpy(current_cell->cell_agent, event_content, sizeof(agent));
-				printf("is an event..!\n");
 				current_cell->cell_agent->vision = event->info_agent.vision; 
 				current_cell->cell_agent->metabolic_rate = event->info_agent.metabolic_rate;     
 				current_cell->cell_agent->max_age = event->info_agent.max_age;            
@@ -97,8 +94,6 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			}
 			
 			//The normal behaviour of an agent in a cell is to eat the sugar of it (for the moment we just have one agent per cell)
-			
-			//PETA AQUI
 			current_cell->cell_agent->wealth+= current_cell->my_state->sugar_tank;
 			current_cell->my_state->sugar_tank = 0;
 			
@@ -126,7 +121,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			//Everytime a cell has a change (in relation with its agent), he communicates it at his neigbours
 			event_update_neighbour.id_cell = me;
             event_update_neighbour.sugar_tank = current_cell->my_state->sugar_tank;
-			event_update_neighbour.occupied = dead_agent?dead_agent:1; 
+			event_update_neighbour.occupied = dead_agent; 
 			event_update_neighbour.newagent = 0;
 			
 			for (i = 0; i < N_DIR; i++) {		
@@ -140,7 +135,6 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 				if(receiver == -1)
 					abort();
 				ScheduleNewEvent(receiver, timestamp, UPDATE_NEIGHBORS, &event_update_neighbour, sizeof(event_cell));
-				printf("update neighbors from %d....\n", me);
 			}
 
 			// A CEL_OUT event is been generated
@@ -151,6 +145,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 		case UPDATE_ME:
 			//if the cell is occupied, the agent in that cell loses wealth in a metabolicRate proportion
 			//this not happen the first time
+			current_cell->events++;
 			if(current_cell->my_state->occupied) { 
 				current_cell->cell_agent->wealth-= current_cell->cell_agent->metabolic_rate;
 			}
@@ -161,7 +156,6 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			else  current_cell->my_state->sugar_tank = current_cell->my_state->sugar_capacity;
 			
 			timestamp= now + (simtime_t) (TIME_STEP);
-			printf("update me from %d...\n", me);
 			ScheduleNewEvent(me, timestamp, UPDATE_ME, NULL, 0);
 
 			break;
@@ -170,7 +164,6 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 		{
 			event_cell *event;
 			event = (event_cell *) event_content;
-printf("inside before update neighbors from %d....\n", me);
 			current_cell->neighbours_state[event->direction_origin].sugar_tank = event->sugar_tank;
 			current_cell->neighbours_state[event->direction_origin].occupied = event->occupied;
 			break;
@@ -261,8 +254,11 @@ printf("inside before update neighbors from %d....\n", me);
 
 int OnGVT(unsigned int me, lp_cell *snapshot) {
 
- 	if(snapshot->events > MAX_EVENTS)
+ 	if(snapshot->events > MAX_EVENTS){
 		return true;
+	}else{
+		printf ("-->%d\n", snapshot->events);
+	}
 
 	return false;
 }
