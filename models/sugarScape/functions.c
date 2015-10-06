@@ -1,6 +1,7 @@
 #include <ROOT-Sim.h>
 #include <math.h>
 #include <stdio.h>
+#include <strings.h>
 
 #include "application.h"
 

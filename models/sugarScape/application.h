@@ -87,9 +87,6 @@ void initEvent(event_migrate *new_event_content);
 void printCellState(lp_cell *current_cell);
 //------Behavior
 void deadAgent(agent *current_agent);
-//int findNeighbour(unsigned int sender);
-//bool isValidNeighbour(unsigned int sender, unsigned int neighbour);
-//int GetNeighbourId(unsigned int sender, unsigned int neighbour);
-
+int directionOriginDepNeighbours(int direction);
 
 #endif /* _ANT_ROBOT_H */

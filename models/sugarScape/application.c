@@ -1,21 +1,24 @@
 #include <ROOT-Sim.h>
 #include <stdio.h>
 #include <limits.h>
+#include <strings.h>
 
 #include "application.h"
 
+
+//#define DEBUG
+
+
 //TODO: parametrization is needed
 //TODO: odd for the model????
-void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, int event_size, lp_cell *current_cell) {
-
+void ProcessEvent(unsigned int me, simtime_t now, int event_type, void *event_content, int event_size, lp_cell *current_cell) {
 	event_migrate new_event_content;
-	
 	initEvent(&new_event_content);
-	
 	int i;
 	int receiver;
-	
 	simtime_t timestamp = 0;
+
+	(void)event_size;
 
 	switch(event_type) {
 
@@ -24,14 +27,16 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			current_cell = (lp_cell *)malloc(sizeof(lp_cell));
 			
 			if(current_cell == NULL){
-				rootsim_error(true, "%s:%d: Unable to allocate memory!\n", __FILE__, __LINE__);
+				fprintf(stderr, "%s:%d: Unable to allocate memory!\n", __FILE__, __LINE__);
+				abort();
 			}
 			current_cell->my_state = (state_cell *)malloc(sizeof(state_cell));
 
 			SetState(current_cell);
 			
 			if(NUM_CELL_OCCUPIED > n_prc_tot){
-				rootsim_error(true, "%s:%d: Require more cell than available LPs\n", __FILE__, __LINE__);
+				fprintf(stderr, "%s:%d: Require more cell than available LPs\n", __FILE__, __LINE__);
+				abort();
 			}
 			
 			initCell(current_cell, me);
@@ -110,7 +115,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 				new_event_content.info_cell.direction_origin = directionOriginDepNeighbours(receiver);
 				new_event_content.info_cell.sugar_tank = current_cell->my_state->sugar_tank;
 		
-			//for this event, it is not important the rest of the params of the event, maybe it will be better if we have two types of events, more clean
+				// for this event, it is not important the rest of the params of the event, maybe it will be better if we have two types of events, more clean
 				new_event_content.info_agent.vision = new_event_content.info_agent.metabolic_rate = new_event_content.info_agent.max_age = -1;
 				new_event_content.info_agent.age = new_event_content.info_agent.wealth = -1;
 
@@ -120,7 +125,7 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			event_cell event_update_neighbour;
 			//Everytime a cell has a change (in relation with its agent), he communicates it at his neigbours
 			event_update_neighbour.id_cell = me;
-            event_update_neighbour.sugar_tank = current_cell->my_state->sugar_tank;
+			event_update_neighbour.sugar_tank = current_cell->my_state->sugar_tank;
 			event_update_neighbour.occupied = dead_agent; 
 			event_update_neighbour.newagent = 0;
 			
@@ -173,20 +178,30 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			current_cell->events++;
 			// Go to the neighbour who has the biggest sugarTank
 			int max_sugar_cell = 0;
-			
-		    event_migrate e_migrate; 
+			event_migrate e_migrate; 
 			event_cell event_update_neighbour;
 			int migrated_receiver;
+
+			receiver = -1;
 			
 			for(i = 0; i < N_DIR; i++) {
 				//if in that cell there are sugar and it is not occupied
-				if(current_cell->neighbours_state[i].sugar_tank > max_sugar_cell && !current_cell->neighbours_state[i].occupied) {
+				if(current_cell->neighbours_state[i].sugar_tank >= max_sugar_cell && !current_cell->neighbours_state[i].occupied) {
 					//The current cell eats the sugar of the new cell
 					//receiver = current_cell->neighbours_state[i].id;
 					receiver = i;
 					max_sugar_cell = current_cell->neighbours_state[i].sugar_tank;
 					break;
 				}
+			}
+
+			// The 'if' condition in the loop could be not verified if all the neighbours
+			// are occupied. In that case, we "wait" for some time, to see if we can migrate later
+			if(receiver == -1) {
+				timestamp = now + (simtime_t) (TIME_STEP * Random());
+				ScheduleNewEvent(me, timestamp, CELL_OUT, NULL, 0);
+				printf("Not moving\n");
+				break;
 			}
 			
 			if(receiver >= N_DIR) {
@@ -247,17 +262,23 @@ void ProcessEvent(int me, simtime_t now, int event_type, void *event_content, in
 			break;
 		}
       	default:
-			rootsim_error(true, "Error: unsupported event: %d\n", event_type);
+			fprintf(stderr, "Error: unsupported event: %d\n", event_type);
+			abort();
 			break;
 	}
 }
 
 int OnGVT(unsigned int me, lp_cell *snapshot) {
+	#ifndef DEBUG
+	(void)me;
+	#endif
 
  	if(snapshot->events > MAX_EVENTS){
 		return true;
-	}else{
-		printf ("-->%d\n", snapshot->events);
+	} else {
+		#ifdef DEBUG
+		printf ("%d: executed %d events - state: occupied=%d, sugar tank=%d\n", me, snapshot->events, snapshot->my_state->occupied, snapshot->my_state->sugar_tank);
+		#endif
 	}
 
 	return false;
